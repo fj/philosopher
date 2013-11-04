@@ -1,87 +1,7 @@
-require 'nokogiri'
-require 'json'
-require 'open-uri'
-require 'cgi'
+require_relative 'wikipedia_page'
+require_relative 'wikipedia_api_client'
 
-class WikipediaApiClient
-  def last_request_time
-    @last_request_time ||= Time.now
-  end
-
-  # Be a good wiki-citizen and wait at least 100ms between requests.
-  def next_request_time
-    last_request_time + 0.1
-  end
-
-  def allow_request?
-    Time.now > next_request_time
-  end
-
-  def request(method, *arguments)
-    raise ArgumentError unless self.respond_to? :method
-    sleep(0.2) until allow_request?
-    @last_request_time = Time.now
-
-    send :"api_#{method}", *arguments
-  end
-
-  def response(url)
-    #puts "### requesting #{url}"
-    JSON.parse open(url).read
-  end
-
-  def api_random_page_title
-    url = 'http://en.wikipedia.org/w/api.php?format=json&action=query&list=random&rnnamespace=0&redirects'
-    json = response(url)
-
-    json['query']['random'].first['title']
-  end
-
-  def api_page(title)
-    base_url = 'http://en.wikipedia.org/w/api.php?format=json&action=parse&prop=text&redirects&page='
-    url = [base_url, CGI::escape(title)].join
-    json = response(url)
-
-    response = {
-      :title   => json['parse']['title'],
-      :content => json['parse']['text']['*']
-    }
-    OpenStruct.new response
-  end
-end
-
-class WikipediaPage
-  attr_accessor :title
-  attr_accessor :content
-  attr_accessor :ignores
-
-  def initialize(o)
-    self.title   = o.title
-    self.content = Nokogiri::HTML o.content
-    self.ignores = 0
-  end
-
-  def parse_title(href)
-    href.sub(/^\/wiki\//, '').gsub('_', ' ')
-  end
-
-  def first_link_title
-    xpath_query = '//p//a[starts-with(@href, "/wiki/")]'
-    unparsed_link = content.xpath(xpath_query).to_a.each.lazy.select do |a|
-      previous_text = a.xpath('preceding::text()').collect(&:text).join
-
-      left_parens  = previous_text.count('(')
-      right_parens = previous_text.count(')')
-
-      !a['href'].include?(':') && (left_parens == right_parens)
-    end.take(ignores + 1).force.last
-
-    parsed_title = parse_title unparsed_link['href']
-    parsed_title
-  end
-end
-
-class PhilosophyFinder
+class Philosopher
   def initialize(starting_point = nil)
     @client = WikipediaApiClient.new
 
@@ -168,4 +88,4 @@ class PhilosophyFinder
   end
 end
 
-PhilosophyFinder.new(ARGV[0]).ruminate
+Philosopher.new(ARGV[0]).ruminate
