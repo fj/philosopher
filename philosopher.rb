@@ -77,14 +77,14 @@ class Philosopher
       visit page
       page = next_page_from page
     end
+    visit page
 
     puts "---"
     puts "! terminating at #{page.title} because #{reason}"
     puts "• trail: #{trail}"
     puts "• trail size: #{trail.count}"
     puts "• backtracks: #{ignores}"
-
-    puts "\n\nYou made it to Philosophy!" if reason == :back_to_philosophy
+    puts "\nmade it to Philosophy!" if reason == :back_to_philosophy
   end
 end
 
